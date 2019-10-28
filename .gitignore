@@ -1,0 +1,4 @@
+# Editor artifacts
+*~
+.*.swp
+debug.test
