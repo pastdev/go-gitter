@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -91,10 +92,10 @@ func testAddSucceeds(
 }
 
 func Test_AddSucceeds(t *testing.T) {
-	// testAddSucceeds(t,
-	// 	"runnergit simple add",
-	// 	gitter.NewRunnerGitter,
-	// 	&gitter.InitArgs{})
+	testAddSucceeds(t,
+		"runnergit simple add",
+		gitter.NewRunnerGitter,
+		&gitter.InitArgs{})
 
 	testAddSucceeds(t,
 		"gogit simple add",
@@ -134,16 +135,68 @@ func Test_InitSucceeds(t *testing.T) {
 func Test_ParseStatusZ(t *testing.T) {
 	stdout := strings.Join(
 		[]string{
-			"A  \"RE D\\\"ME .md\" -> README.md",
-			" D README.md",
+			"R  README.md\000RE D\\\"ME .md\"",
 			"A  \"foo bar\"",
 			"MD foobar",
 			"?? abc/",
 			"?? asdf fdsa",
+			"",
 		},
 		"\000")
 	status := gitter.ParseStatusZ(stdout)
-	if status.File("RE DME .md").Staging != git.Added {
-		t.Errorf("expected added")
+
+	if len(status) != 5 {
+		t.Errorf("Expected 5 changes, found %d", len(status))
+	}
+
+	name := "README.md"
+	expected := &git.FileStatus{
+		Staging:  git.Renamed,
+		Worktree: git.Unmodified,
+		Extra:    "RE D\\\"ME .md\"",
+	}
+	actual := status.File(name)
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("%s: %v != %v", name, expected, actual)
+	}
+
+	name = "\"foo bar\""
+	expected = &git.FileStatus{
+		Staging:  git.Added,
+		Worktree: git.Unmodified,
+	}
+	actual = status.File(name)
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("%s: %v != %v", name, expected, actual)
+	}
+
+	name = "foobar"
+	expected = &git.FileStatus{
+		Staging:  git.Modified,
+		Worktree: git.Deleted,
+	}
+	actual = status.File(name)
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("%s: %v != %v", name, expected, actual)
+	}
+
+	name = "abc/"
+	expected = &git.FileStatus{
+		Staging:  git.Untracked,
+		Worktree: git.Untracked,
+	}
+	actual = status.File(name)
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("%s: %v != %v", name, expected, actual)
+	}
+
+	name = "asdf fdsa"
+	expected = &git.FileStatus{
+		Staging:  git.Untracked,
+		Worktree: git.Untracked,
+	}
+	actual = status.File(name)
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("%s: %v != %v", name, expected, actual)
 	}
 }
