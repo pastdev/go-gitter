@@ -1,7 +1,6 @@
 package gitter_test
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -13,64 +12,17 @@ import (
 	"gopkg.in/src-d/go-git.v4"
 )
 
-type TestDir struct {
-	Dir           string
-	WorkingDir    string
-	WorkingGitter gitter.Gitter
-	OriginDir     string
-	OriginGitter  gitter.Gitter
-}
-
-func newTestDir(new func(workingDir string) gitter.Gitter) (*TestDir, error) {
-	temp, err := ioutil.TempDir("", "gitter_test_")
-	if err != nil {
-		return nil, fmt.Errorf("unable to create temp dir: %v", err)
-	}
-
-	dir := TestDir{
-		Dir:        temp,
-		WorkingDir: path.Join(temp, "working"),
-		OriginDir:  path.Join(temp, "origin.git"),
-	}
-
-	err = os.MkdirAll(dir.WorkingDir, 0700)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create temp working dir: %v", err)
-	}
-	dir.WorkingGitter = new(dir.WorkingDir)
-	err = dir.WorkingGitter.Init(&gitter.InitArgs{})
-	if err != nil {
-		return nil, fmt.Errorf("unable to init temp working dir: %v", err)
-	}
-
-	err = os.MkdirAll(dir.OriginDir, 0700)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create temp origin dir: %v", err)
-	}
-	dir.OriginGitter = new(dir.OriginDir)
-	err = dir.OriginGitter.Init(&gitter.InitArgs{Bare: true})
-	if err != nil {
-		return nil, fmt.Errorf("unable to init temp origin dir: %v", err)
-	}
-
-	return &dir, nil
-}
-
-func (d *TestDir) cleanup() {
-	os.RemoveAll(d.Dir)
-}
-
 func testAddSucceeds(
 	t *testing.T,
 	name string,
 	new func(workingDir string) gitter.Gitter,
 	args *gitter.InitArgs) {
 
-	dir, err := newTestDir(new)
+	dir, err := gitter.NewTestFixture(new)
 	if err != nil {
 		t.Errorf("unable to create temp dir: %v", err)
 	}
-	defer dir.cleanup()
+	defer dir.Cleanup()
 
 	workingDir := dir.WorkingDir
 	g := dir.WorkingGitter
@@ -109,13 +61,12 @@ func testInitSucceeds(
 	new func(workingDir string) gitter.Gitter,
 	args *gitter.InitArgs) {
 
-	// newTestDir init's working regular, and origin with --bare
-	dir, err := newTestDir(new)
+	fixture, err := gitter.NewTestFixture(new)
 	if err != nil {
 		t.Errorf("%s .git missing: %v", name, err)
 	}
 
-	if info, err := os.Stat(path.Join(dir.WorkingDir, ".git")); !(err == nil && info.IsDir()) {
+	if info, err := os.Stat(path.Join(fixture.WorkingDir, ".git")); !(err == nil && info.IsDir()) {
 		t.Errorf("%s .git missing: %v", name, err)
 	}
 }

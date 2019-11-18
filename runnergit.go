@@ -38,6 +38,37 @@ func (r *RunnerGitRepo) Add(args *AddArgs) error {
 	return nil
 }
 
+func runForStdout(args ...string) ([]byte, error) {
+	cmd := exec.Command("git", args...)
+	return cmd.Output()
+}
+
+func run(args ...string) error {
+	stdout, err := runForStdout(args...)
+	if err != nil {
+		return err
+	}
+	log.Debug(stdout)
+
+	return nil
+}
+
+func (r *RunnerGitRepo) Commit(args *CommitArgs) error {
+	cmdArgs := []string{
+		"-C",
+		r.WorkingDir,
+		"commit",
+		"--message",
+		args.Message,
+	}
+
+	if args.All {
+		cmdArgs = append(cmdArgs, "--all")
+	}
+
+	return run(cmdArgs...)
+}
+
 // GetWorkingDir returns the Repo.WorkingDir.
 func (r *RunnerGitRepo) GetWorkingDir() string {
 	return r.WorkingDir
@@ -55,14 +86,7 @@ func (r *RunnerGitRepo) Init(args *InitArgs) error {
 		cmdArgs = append(cmdArgs, "--bare")
 	}
 
-	cmd := exec.Command("git", cmdArgs...)
-	stdout, err := cmd.Output()
-	if err != nil {
-		return err
-	}
-	log.Debug(stdout)
-
-	return nil
+	return run(cmdArgs...)
 }
 
 // Status implements Gitter.Status using exec git.
@@ -74,8 +98,7 @@ func (r *RunnerGitRepo) Status() (git.Status, error) {
 		"-z",
 	}
 
-	cmd := exec.Command("git", cmdArgs...)
-	stdout, err := cmd.Output()
+	stdout, err := runForStdout(cmdArgs...)
 	if err != nil {
 		return nil, err
 	}
